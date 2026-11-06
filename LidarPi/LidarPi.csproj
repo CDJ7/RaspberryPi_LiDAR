@@ -1,0 +1,40 @@
+<!--
+  LidarPi: the headless program that runs on the Raspberry Pi 5.
+  Microsoft.NET.Sdk.Web gives us ASP.NET Core (Kestrel) for the REST API plus the
+  generic host (logging, configuration, background services, SIGTERM handling).
+-->
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>$(LidarAgvTargetFramework)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>LidarPi</RootNamespace>
+    <AssemblyName>LidarPi</AssemblyName>
+    <!-- The Pi image has no ICU data by default; invariant globalization avoids a
+         startup crash and we do not need culture-specific formatting. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Lets "dotnet publish -r linux-arm64" (and the Visual Studio publish profile)
+         restore the right runtime pack without extra steps. -->
+    <RuntimeIdentifiers>linux-arm64;win-x64</RuntimeIdentifiers>
+    <!-- Ship the .pdb next to the binary so Visual Studio can debug over SSH. -->
+    <CopyOutputSymbolsToPublishDirectory>true</CopyOutputSymbolsToPublishDirectory>
+    <UserSecretsId>lidar-agv-pi</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- GPIO access through the Linux libgpiod character-device driver (works on the Pi 5). -->
+    <PackageReference Include="System.Device.Gpio" Version="4.2.0" />
+    <!-- Device bindings: HD44780 character LCD + PCF8574 I2C backpack (Iot.Device.CharacterLcd). -->
+    <PackageReference Include="Iot.Device.Bindings" Version="4.2.0" />
+    <!-- SerialPort for the RPLIDAR's CP2102 USB-UART adapter. -->
+    <PackageReference Include="System.IO.Ports" Version="10.0.14" />
+    <!-- systemd integration: sd_notify "ready", journal-friendly logs, clean SIGTERM stop. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Deployment files are copied into the publish folder so WinSCP only has to copy one folder. -->
+    <None Update="deploy\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

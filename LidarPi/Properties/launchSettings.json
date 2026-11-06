@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Simulate (local)": {
+      "commandName": "Project",
+      "commandLineArgs": "--simulate",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "Check LiDAR": {
+      "commandName": "Project",
+      "commandLineArgs": "--check --scans 20",
+      "launchBrowser": false
+    },
+    "Check LiDAR (simulated)": {
+      "commandName": "Project",
+      "commandLineArgs": "--check --simulate --scans 10",
+      "launchBrowser": false
+    }
+  }
+}
