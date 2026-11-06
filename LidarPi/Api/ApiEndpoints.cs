@@ -148,8 +148,12 @@ public static class ApiEndpoints
         return new LedState(leds.Mode, g, y, r, leds.TestSecondsRemaining);
     }
 
-    /// <summary>POST /api/leds: auto mode, or a manual test pattern with a timeout.</summary>
-    private static IResult SetLeds(LedRequest req, ApiDeps d)
+    /// <summary>
+    /// POST /api/leds: auto mode, or a manual test pattern with a timeout. The pins are
+    /// written by the safety loop, so the reply waits a few loop ticks and then reports
+    /// what the LEDs really show (not just what was requested).
+    /// </summary>
+    private static async Task<IResult> SetLeds(LedRequest req, ApiDeps d, IOptions<AppOptions> options)
     {
         switch (req.Mode?.Trim().ToLowerInvariant())
         {
@@ -163,6 +167,7 @@ public static class ApiEndpoints
             default:
                 return Results.BadRequest(new ApiError("mode must be \"auto\" or \"test\"."));
         }
+        await Task.Delay(3 * Math.Max(5, options.Value.Safety.LoopPeriodMs));
         return Results.Ok(BuildLeds(d));
     }
 

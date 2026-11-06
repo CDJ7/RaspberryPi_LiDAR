@@ -27,9 +27,9 @@
     <!-- Device bindings: HD44780 character LCD + PCF8574 I2C backpack (Iot.Device.CharacterLcd). -->
     <PackageReference Include="Iot.Device.Bindings" Version="4.2.0" />
     <!-- SerialPort for the RPLIDAR's CP2102 USB-UART adapter. -->
-    <PackageReference Include="System.IO.Ports" Version="10.0.14" />
+    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
     <!-- systemd integration: sd_notify "ready", journal-friendly logs, clean SIGTERM stop. -->
-    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>

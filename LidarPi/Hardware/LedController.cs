@@ -26,7 +26,7 @@ public enum LedMode
 /// </remarks>
 public sealed class LedController : IDisposable
 {
-    private readonly Lock _lock = new();   // API thread (SetTest/SetAuto) vs safety thread (Apply)
+    private readonly object _lock = new();   // API thread (SetTest/SetAuto) vs safety thread (Apply)
     private readonly IndicatorLed _green, _yellow, _red;
     private readonly SafetyOptions _safety;
     private readonly ILogger<LedController> _logger;

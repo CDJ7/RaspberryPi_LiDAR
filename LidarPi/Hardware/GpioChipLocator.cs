@@ -25,7 +25,7 @@ public sealed class GpioChipLocator : IDisposable
 
     private readonly GpioOptions _options;
     private readonly ILogger<GpioChipLocator> _logger;
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
     private GpioController? _controller;
     private DateTime _nextAttemptUtc = DateTime.MinValue;
 

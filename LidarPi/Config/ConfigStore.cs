@@ -29,7 +29,7 @@ public sealed class ConfigStore
     private static readonly TimeSpan LoginCacheLifetime = TimeSpan.FromMinutes(5);
 
     private readonly ILogger<ConfigStore> _logger;
-    private readonly Lock _saveLock = new();                                      // serialises writers (API threads)
+    private readonly object _saveLock = new();                                      // serialises writers (API threads)
     private readonly ConcurrentDictionary<string, DateTime> _loginCache = new();  // SHA-256(credentials) -> expiry
     private volatile RuntimeConfig _current;                                      // swapped atomically; readers never lock
 

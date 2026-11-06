@@ -46,7 +46,7 @@ public sealed class LcdDisplayManager : BackgroundService
     private readonly LcdOptions _options;
     private readonly bool _simulate;
     private readonly ILogger<LcdDisplayManager> _logger;
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
 
     private I2cDevice? _i2c;
     private Lcd1602? _lcd;

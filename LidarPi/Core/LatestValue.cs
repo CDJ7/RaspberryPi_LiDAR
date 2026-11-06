@@ -16,7 +16,7 @@ namespace LidarPi.Core;
 public sealed class LatestValue<T> where T : class
 {
     // A single lock is plenty: publish/read happen ~10-100 times per second.
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
     private T? _value;
     private long _stampTicks;   // Stopwatch timestamp of the last publish (monotonic, immune to clock changes)
     private long _sequence;     // increments on every publish; lets readers detect "new since last time"

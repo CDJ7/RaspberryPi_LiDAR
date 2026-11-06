@@ -17,7 +17,7 @@ namespace LidarPi.Safety;
 /// </remarks>
 public sealed class EmergencyStopLatch
 {
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
     private readonly int _tripSamples;
     private readonly TimeSpan _releaseStable;
     private int _pressedCount;            // consecutive raw "pressed" samples
