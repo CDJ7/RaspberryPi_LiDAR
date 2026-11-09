@@ -5,6 +5,7 @@ using LidarPi.Hardware;
 using LidarPi.Lidar;
 using LidarPi.Safety;
 using LidarPi.Services;
+using LidarPi.Tools;
 using Microsoft.AspNetCore.Authentication;
 
 namespace LidarPi;
@@ -28,10 +29,17 @@ public static class Program
     /// <returns>Process exit code (0 = OK).</returns>
     public static int Main(string[] args)
     {
-        bool simulate = args.Contains("--simulate", StringComparer.OrdinalIgnoreCase);
+        bool simulate = HasFlag(args, "--simulate");
+        bool check = HasFlag(args, "--check");
+        int scans = 20;
+        int scansIndex = Array.FindIndex(args, a => a.Equals("--scans", StringComparison.OrdinalIgnoreCase));
+        if (scansIndex >= 0 && scansIndex + 1 < args.Length && int.TryParse(args[scansIndex + 1], out int n)) scans = Math.Clamp(n, 1, 1000);
+
         // The generic host's command-line parser expects "--key value" pairs and would choke on
         // our bare switches, so strip them before handing the rest (e.g. --urls) to the host.
-        string[] hostArgs = args.Where(a => !a.Equals("--simulate", StringComparison.OrdinalIgnoreCase)).ToArray();
+        string[] hostArgs = args
+            .Where((a, i) => !IsOurFlag(a) && !(scansIndex >= 0 && i == scansIndex + 1))
+            .ToArray();
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -41,8 +49,14 @@ public static class Program
             ContentRootPath = AppContext.BaseDirectory,
         });
 
-        ConfigureServices(builder, simulate);
+        ConfigureServices(builder, simulate, check);
         WebApplication app = builder.Build();
+
+        if (check)
+        {
+            // --check: no web server, no GPIO, no LCD - only the LiDAR, then exit.
+            return app.Services.GetRequiredService<LidarCheck>().Run(scans);
+        }
 
         AppOptions options = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppOptions>>().Value;
         app.Logger.LogInformation("LidarAgv starting ({Mode}), REST API on http://{Addr}:{Port}",
@@ -55,8 +69,17 @@ public static class Program
         return 0;
     }
 
+    /// <summary>True if the command line contains <paramref name="flag"/> (case-insensitive).</summary>
+    private static bool HasFlag(string[] args, string flag) => args.Contains(flag, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Our own switches, which are removed before the host parses the command line.</summary>
+    private static bool IsOurFlag(string arg) =>
+        arg.Equals("--simulate", StringComparison.OrdinalIgnoreCase)
+        || arg.Equals("--check", StringComparison.OrdinalIgnoreCase)
+        || arg.Equals("--scans", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Registers options, hardware wrappers, background services and the API.</summary>
-    private static void ConfigureServices(WebApplicationBuilder builder, bool simulate)
+    private static void ConfigureServices(WebApplicationBuilder builder, bool simulate, bool check)
     {
         // Integrates with systemd: "Type=notify" readiness, journal log format, SIGTERM -> clean stop.
         // It is a no-op when not started by systemd (e.g. F5 in Visual Studio).
@@ -83,14 +106,17 @@ public static class Program
         builder.Services.AddSingleton<ShutdownService>();
         builder.Services.AddTransient<ApiDeps>();
 
-        if (simulate)
+        // The one place where simulation and hardware differ for the LiDAR: everything else
+        // only sees the abstract LidarDevice.
+        if (simulate) builder.Services.AddSingleton<LidarDevice, SimulatedLidar>();
+        else builder.Services.AddSingleton<LidarDevice, RpLidarA1>();
+
+        if (check)
         {
-            builder.Services.AddSingleton<LidarDevice, SimulatedLidar>();
-        }
-        else
-        {
-            // TODO (stage 3): the real RPLIDAR A1 driver (RpLidarA1) is registered here.
-            throw new NotSupportedException("Stage 1 build: only --simulate is available until the RPLIDAR driver is added.");
+            // --check prints its own results; keep the log to warnings so the table stays readable.
+            builder.Logging.SetMinimumLevel(LogLevel.Warning);
+            builder.Services.AddSingleton<LidarCheck>();
+            return;
         }
 
         // Background services. Each is registered once as a singleton AND as a hosted service,

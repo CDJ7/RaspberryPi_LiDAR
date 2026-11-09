@@ -97,8 +97,20 @@ public sealed class GpioChipLocator : IDisposable
         }
         catch (Exception v2Error)
         {
-            throw new InvalidOperationException($"libgpiod v1: {v1Error.Message}; libgpiod v2: {v2Error.Message}", v2Error);
+            throw new InvalidOperationException($"libgpiod v1: {FirstLine(v1Error.Message)}; libgpiod v2: {FirstLine(v2Error.Message)}", v2Error);
         }
+    }
+
+    /// <summary>
+    /// First line of an exception message. WHY: a missing native library produces a message
+    /// listing every path that was tried (dozens of lines), which would flood the journal and the GUI.
+    /// </summary>
+    private static string FirstLine(string message)
+    {
+        int nl = message.IndexOf('\n', StringComparison.Ordinal);
+        string first = (nl < 0 ? message : message[..nl]).Trim();
+        int sentence = first.IndexOf(". ", StringComparison.Ordinal);   // keep only the first sentence
+        return sentence < 0 ? first : first[..sentence];
     }
 
     /// <summary>Applies the "auto" rule or the configured chip number.</summary>
