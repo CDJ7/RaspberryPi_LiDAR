@@ -55,12 +55,14 @@ public sealed class LidarCheck
             Console.WriteLine();
 
             RuntimeConfig cfg = _config.Current;
-            var watch = Stopwatch.StartNew();
+            // Timed from the FIRST revolution, so motor spin-up does not distort the scan rate.
+            var watch = new Stopwatch();
             int n = 0;
             using var cts = new CancellationTokenSource();
             foreach (IReadOnlyList<RawMeasurement> raw in _device.ScanRevolutions(cts.Token))
             {
                 n++;
+                if (n == 1) watch.Start();
                 ProcessedScan scan = ScanProcessor.Process(raw, cfg, _options.Lidar);
                 Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                     $"scan {n,3}: {raw.Count,4} raw {scan.Points.Count,4} valid   {SectorSummary(scan)}   objects {scan.Objects.Count}"));
@@ -68,8 +70,9 @@ public sealed class LidarCheck
             }
             double seconds = watch.Elapsed.TotalSeconds;
             Console.WriteLine();
+            double rate = n > 1 && seconds > 0 ? (n - 1) / seconds : 0;
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"{n} scans in {seconds:0.0} s -> {n / seconds:0.0} Hz (A1M8 nominal 5.5-10 Hz)"));
+                $"{n} scans, {rate:0.0} Hz between revolutions (A1M8 nominal 5.5-10 Hz)"));
             Console.WriteLine("Orientation: an object ~0.5 m to the LEFT must show under 'left'. See README troubleshooting if not.");
             return 0;
         }

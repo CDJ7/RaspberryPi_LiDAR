@@ -77,6 +77,19 @@ public sealed class LidarOptions
     /// the backlog is dropped so the safety logic always sees fresh data.
     /// </summary>
     public int MaxBacklogBytes { get; set; } = 3000;
+
+    /// <summary>
+    /// Time the motor gets to reach speed before the SCAN request. The A1 only sends
+    /// measurements while it rotates; from standstill it needs well over 0.5 s.
+    /// </summary>
+    public double MotorSpinUpSeconds { get; set; } = 2.0;
+
+    /// <summary>
+    /// How long to wait for the FIRST scan data after the SCAN request. Longer than the
+    /// normal 1 s read timeout because the first revolution only starts once the motor
+    /// speed is stable. After data has arrived, 1 s of silence is a fault again.
+    /// </summary>
+    public double FirstDataTimeoutSeconds { get; set; } = 5.0;
 }
 
 /// <summary>Timing and fail-safe settings of the safety loop.</summary>

@@ -185,7 +185,8 @@ public sealed class RpLidarA1 : LidarDevice
     {
         SerialPort port = Require();
         SetMotor(true);
-        cancellationToken.WaitHandle.WaitOne(500);   // let the motor spin up before asking for data
+        // Let the motor reach speed before asking for data (the A1 sends nothing while it is still starting).
+        cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(Math.Max(0.5, _options.MotorSpinUpSeconds)));
         port.DiscardInBuffer();
         Send(CmdScan);
         var (size, continuous, type) = ReadDescriptor();
@@ -193,6 +194,10 @@ public sealed class RpLidarA1 : LidarDevice
             throw new LidarException($"bad SCAN descriptor (type 0x{type:X2}, size {size}, continuous {continuous})");
         _scanning = true;
         Logger.LogInformation("LiDAR motor on, scanning");
+
+        // Until the first bytes arrive, read timeouts are tolerated up to FirstDataTimeoutSeconds.
+        DateTime firstDataDeadlineUtc = DateTime.UtcNow.AddSeconds(Math.Max(1.0, _options.FirstDataTimeoutSeconds));
+        bool gotData = false;
 
         byte[] buffer = new byte[4096];
         int count = 0;                                // valid bytes in buffer
@@ -210,7 +215,11 @@ public sealed class RpLidarA1 : LidarDevice
                 revolution.Clear();
             }
 
-            count += ReadSome(buffer, count);
+            int read = ReadSome(buffer, count, allowTimeout: !gotData && DateTime.UtcNow < firstDataDeadlineUtc);
+            if (read == 0) continue;   // still waiting for the first revolution after spin-up
+            if (!gotData) Logger.LogInformation("LiDAR scan data flowing");
+            gotData = true;
+            count += read;
 
             int i = 0;
             while (count - i >= NodeSize)
@@ -317,7 +326,11 @@ public sealed class RpLidarA1 : LidarDevice
     }
 
     /// <summary>Reads whatever is available (at least 1 byte, waiting up to the read timeout) into the buffer tail.</summary>
-    private int ReadSome(byte[] buffer, int offset)
+    /// <param name="buffer">Receive buffer.</param>
+    /// <param name="offset">Where the new bytes go.</param>
+    /// <param name="allowTimeout">True during start-up: a timeout returns 0 instead of throwing.</param>
+    /// <returns>Number of bytes read (0 only if <paramref name="allowTimeout"/> and nothing arrived).</returns>
+    private int ReadSome(byte[] buffer, int offset, bool allowTimeout)
     {
         SerialPort port = Require();
         int space = buffer.Length - offset;
@@ -329,6 +342,7 @@ public sealed class RpLidarA1 : LidarDevice
         }
         catch (TimeoutException ex)
         {
+            if (allowTimeout) return 0;
             throw new LidarException("scan data timeout (motor stalled? USB cable? weak 5 V supply?)", ex);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException)
