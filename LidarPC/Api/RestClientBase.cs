@@ -42,6 +42,8 @@ public abstract class RestClientBase : IDisposable
             ConnectTimeout = TimeSpan.FromSeconds(3),
             // Recycle connections now and then so a changed DNS entry / Pi reboot is picked up.
             PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            // The Pi is on the local network: never route through a system/school HTTP proxy.
+            UseProxy = false,
         };
         _http = new HttpClient(handler) { BaseAddress = baseAddress, Timeout = timeout };
         string token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"));

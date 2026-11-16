@@ -12,3 +12,6 @@ publish/
 LidarPi/data/
 # Zip produced by make-zip.ps1
 *.zip
+
+# Python bytecode from tools/linux-viewer
+__pycache__/
