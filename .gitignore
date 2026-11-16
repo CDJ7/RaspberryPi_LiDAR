@@ -1,0 +1,17 @@
+# Visual Studio / .NET build output and per-user state
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
+*.rsuser
+TestResults/
+publish/
+# Runtime config written by the simulator on the PC (contains a password hash)
+LidarPi/data/
+# Zip produced by make-zip.ps1
+*.zip
+
+# Python bytecode from tools/linux-viewer
+__pycache__/

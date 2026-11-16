@@ -1,0 +1,44 @@
+{
+  // VS Code run/debug configurations (needs the "C#" / "C# Dev Kit" extension).
+  // Pick "Simulator + GUI" in the Run and Debug view and press F5 to start both programs.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "LidarPi (simulate)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build LidarAgv",
+      "program": "${workspaceFolder}/LidarPi/bin/Debug/net8.0/LidarPi.dll",
+      "args": ["--simulate"],
+      "cwd": "${workspaceFolder}/LidarPi/bin/Debug/net8.0",
+      "console": "integratedTerminal",
+      "env": { "DOTNET_ENVIRONMENT": "Development" }
+    },
+    {
+      "name": "LidarPi (check, simulated)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build LidarAgv",
+      "program": "${workspaceFolder}/LidarPi/bin/Debug/net8.0/LidarPi.dll",
+      "args": ["--check", "--simulate", "--scans", "10"],
+      "cwd": "${workspaceFolder}/LidarPi/bin/Debug/net8.0",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "LidarPC (GUI)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/LidarPC/bin/Debug/net8.0-windows/LidarPC.dll",
+      "cwd": "${workspaceFolder}/LidarPC",
+      "console": "internalConsole"
+    }
+  ],
+  "compounds": [
+    {
+      // Builds once (via the LidarPi config's preLaunchTask), then starts the simulator and the GUI.
+      "name": "Simulator + GUI",
+      "configurations": ["LidarPi (simulate)", "LidarPC (GUI)"],
+      "stopAll": true
+    }
+  ]
+}

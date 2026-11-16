@@ -1,0 +1,12 @@
+# Stable device name for the Slamtec RPLIDAR A1M8 (reused from apex-agv/agv_pi/udev/99-apex-agv.rules).
+# Its CP2102 USB-UART adapter (Silicon Labs VID 10c4, PID ea60) appears as /dev/ttyUSB0 or ttyUSB1
+# depending on plug order; this rule always adds the symlink /dev/rplidar, which LidarPi opens.
+#
+# Install on the Pi:
+#   sudo cp deploy/99-rplidar.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#   ls -l /dev/rplidar          # -> ttyUSB0
+#
+# Verify the IDs on your hardware:  udevadm info -a -n /dev/ttyUSB0 | grep -E "idVendor|idProduct"
+# If another CP2102 device is plugged in, add  ATTRS{serial}=="<serial>"  to tell them apart.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="rplidar", MODE="0660", GROUP="dialout"

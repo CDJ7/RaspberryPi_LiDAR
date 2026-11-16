@@ -1,0 +1,30 @@
+<!--
+  Settings shared by BOTH projects (LidarPi and LidarPC). MSBuild imports this file
+  automatically for every project below this folder, so the two projects cannot drift
+  apart on language version, nullability or warning rules.
+-->
+<Project>
+  <PropertyGroup>
+    <!-- One place to change the .NET version. net8.0 matches the .NET 8 SDK on the
+         development PC (8.0.426). With a .NET 10 SDK this can be changed to net10.0. -->
+    <LidarAgvTargetFramework>net8.0</LidarAgvTargetFramework>
+
+    <!-- C# 12 is the newest language version the .NET 8 SDK compiles. Pinned so every
+         machine (this one, Visual Studio on the PC) builds exactly the same code. -->
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Generates the XML documentation file. Side effect we want: the compiler warns
+         (CS1591) about any public class or member that is missing a /// comment, which
+         backs up the course rule "every class and method is commented". -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Portable PDBs are what vsdbg (Visual Studio remote debugging over SSH) reads. -->
+    <DebugType>portable</DebugType>
+
+    <AnalysisLevel>latest</AnalysisLevel>
+    <Authors>Connor Jarrett</Authors>
+    <Product>LidarAgv Safety Monitor</Product>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,23 @@
+<!--
+  LidarPC: the Windows Forms GUI that runs on the PC and talks to the Pi's REST API.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>$(LidarAgvTargetFramework)-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>LidarPC</RootNamespace>
+    <AssemblyName>LidarPC</AssemblyName>
+    <!-- SystemAware keeps the Visual Studio Designer layout and the running app identical. -->
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+    <ApplicationDefaultFont>Segoe UI, 9pt</ApplicationDefaultFont>
+    <!-- Lets the project also BUILD (not run) on Linux/macOS, e.g. for a quick CI check.
+         Has no effect on Windows. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <!-- No NuGet packages: HttpClient, System.Text.Json and GDI+ drawing are all part of .NET. -->
+
+</Project>
