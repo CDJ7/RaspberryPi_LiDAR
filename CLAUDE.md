@@ -4,6 +4,10 @@ Instructions for Claude Code working in this repository. Read this first.
 
 ## What this is
 
+Standalone repository `CDJ7/RaspberryPi_LiDAR`. (It started in `CDJ7/Senior-Design` under `C#/LidarAgv`
+and was moved here with its history; the senior-design Python code it was ported from lives in that repo
+under `apex-agv/agv_pi/lidar/`.)
+
 An RPLIDAR A1M8 proximity/safety monitor for an AGV, built for a course final project.
 **The graded deliverable is C#** (the instructor requires it). Do not port the programs to
 another language. Python is only used for the throw-away dev tool in `tools/linux-viewer/`.
@@ -56,7 +60,6 @@ Default API login: `admin` / `changeme` (stored as a PBKDF2 hash in `data/config
   (and read by `tools/linux-viewer`). Change all of them together.
 - Test hardware code without hardware: `--simulate`, or a fake A1 on a pseudo-terminal
   (set `LidarAgv__Lidar__Port=<pty>`). Never claim hardware behaviour was verified unless the user ran it on the Pi.
-- In bash, avoid `sed` with `#` as delimiter inside paths containing `C#` (use Python or another delimiter).
 
 ## Build stages (from the original plan)
 
