@@ -38,8 +38,9 @@ dotnet build LidarAgv.sln                                  # must finish with 0 
 dotnet run --project LidarPi -- --simulate                 # full Pi app on this laptop, fake LiDAR, API on :5000
 dotnet run --project LidarPi -- --check --simulate         # LiDAR self-test against the simulator
 python3 tools/linux-viewer/lidar_viewer.py --host localhost # watch the simulator (password: changeme)
-./deploy.sh [--check|--run|--gpio-test|--restart]          # publish linux-arm64 and rsync to the Pi
+./deploy.sh [--check|--run|--gpio-test|--lcd-test|--restart] # publish linux-arm64 and rsync to the Pi
 dotnet run --project LidarPi -- --gpio-test --simulate     # LED / motion-enable / E-stop wiring test (simulated)
+dotnet run --project LidarPi -- --lcd-test --simulate      # LCD test (real one: I2C scan + test patterns on the Pi)
 curl -u admin:changeme http://localhost:5000/api/status    # quick API check
 ```
 
@@ -70,7 +71,7 @@ Default API login: `admin` / `changeme` (stored as a PBKDF2 hash in `data/config
 2. ✅ PC GUI (WinForms) against the simulator
 3. ✅ Real RPLIDAR driver + `--check` (verified on the Pi: info/health OK; scan start-up fix pending user test)
 4. 🔧 GPIO LEDs, E-stop, motion enable + `WIRING.md` + `--gpio-test` (code done; wiring test on the Pi pending)
-5. ⏳ LCD on real hardware
+5. 🔧 LCD on real hardware: `--lcd-test` (I2C scan + patterns), 30 s full refresh (code done; Pi test pending)
 6. ⏳ systemd service, sudoers, `deploy.ps1`, `make-zip.ps1` (+ Linux equivalent), README bring-up guide,
    `REQUIREMENTS_MAP.md`, proposal "Description" text
 

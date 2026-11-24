@@ -23,6 +23,8 @@ namespace LidarPi;
 /// front/left/back/right distances), then exit. Can be combined with <c>--simulate</c>.</item>
 /// <item><c>--gpio-test [--seconds N]</c>: wiring check - each LED, the motion-enable pin,
 /// then N seconds (default 20) of live E-stop readings, then exit.</item>
+/// <item><c>--lcd-test [--address 0x3F]</c>: I2C bus scan for the LCD backpack, then test
+/// patterns and every status message on the real LCD, then exit.</item>
 /// </list>
 /// </remarks>
 public static class Program
@@ -34,16 +36,19 @@ public static class Program
         bool simulate = HasFlag(args, "--simulate");
         bool check = HasFlag(args, "--check");
         bool gpioTest = HasFlag(args, "--gpio-test");
+        bool lcdTest = HasFlag(args, "--lcd-test");
         int scansIndex = IndexOfFlag(args, "--scans");
         int secondsIndex = IndexOfFlag(args, "--seconds");
+        int addressIndex = IndexOfFlag(args, "--address");
         int scans = IntAfter(args, scansIndex, 20, 1, 1000);
         int seconds = IntAfter(args, secondsIndex, 20, 1, 600);
+        int? address = addressIndex >= 0 && addressIndex + 1 < args.Length ? ParseI2cAddress(args[addressIndex + 1]) : null;
 
         // The generic host's command-line parser expects "--key value" pairs and would choke on
         // our bare switches, so strip them (and the numbers after --scans/--seconds) before
         // handing the rest (e.g. --urls) to the host.
         string[] hostArgs = args
-            .Where((a, i) => !IsOurFlag(a) && i != scansIndex + 1 && i != secondsIndex + 1)
+            .Where((a, i) => !IsOurFlag(a) && i != scansIndex + 1 && i != secondsIndex + 1 && i != addressIndex + 1)
             .ToArray();
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -54,12 +59,13 @@ public static class Program
             ContentRootPath = AppContext.BaseDirectory,
         });
 
-        ConfigureServices(builder, simulate, toolMode: check || gpioTest);
+        ConfigureServices(builder, simulate, toolMode: check || gpioTest || lcdTest);
         WebApplication app = builder.Build();
 
         // Tool modes: no web server and no background services; run the test, then exit.
         if (check) return app.Services.GetRequiredService<LidarCheck>().Run(scans);
         if (gpioTest) return app.Services.GetRequiredService<GpioCheck>().Run(seconds);
+        if (lcdTest) return app.Services.GetRequiredService<LcdCheck>().Run(address);
 
         AppOptions options = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppOptions>>().Value;
         app.Logger.LogInformation("LidarAgv starting ({Mode}), REST API on http://{Addr}:{Port}",
@@ -88,11 +94,24 @@ public static class Program
             ? Math.Clamp(n, min, max)
             : fallback;
 
+    /// <summary>Parses "0x3F", "3F" or "63" as an I2C address; null if it is not a valid 7-bit address.</summary>
+    private static int? ParseI2cAddress(string text)
+    {
+        string t = text.Trim();
+        bool hex = t.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
+        bool ok = hex
+            ? int.TryParse(t[2..], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out int a)
+            : int.TryParse(t, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out a);
+        return ok && a is >= 0x03 and <= 0x77 ? a : null;
+    }
+
     /// <summary>Our own switches, which are removed before the host parses the command line.</summary>
     private static bool IsOurFlag(string arg) =>
         arg.Equals("--simulate", StringComparison.OrdinalIgnoreCase)
         || arg.Equals("--check", StringComparison.OrdinalIgnoreCase)
         || arg.Equals("--gpio-test", StringComparison.OrdinalIgnoreCase)
+        || arg.Equals("--lcd-test", StringComparison.OrdinalIgnoreCase)
+        || arg.Equals("--address", StringComparison.OrdinalIgnoreCase)
         || arg.Equals("--scans", StringComparison.OrdinalIgnoreCase)
         || arg.Equals("--seconds", StringComparison.OrdinalIgnoreCase);
 
@@ -140,6 +159,7 @@ public static class Program
             });
             builder.Services.AddSingleton<LidarCheck>();
             builder.Services.AddSingleton<GpioCheck>();
+            builder.Services.AddSingleton<LcdCheck>();
             return;
         }
 

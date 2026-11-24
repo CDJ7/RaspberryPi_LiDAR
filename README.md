@@ -96,7 +96,18 @@ installed on the Pi (`sudo apt install -y libgpiod2`), then from the laptop:
 Each LED lights in turn, the motion-enable pin goes HIGH then LOW, and every press/release of the
 E-stop button is printed.
 
-### 5. The Windows GUI
+### 5. Test the LCD
+
+Enable I2C on the Pi once (`sudo raspi-config` → Interface Options → I2C → reboot), wire the LCD as in
+`WIRING.md` section 5, then:
+
+```bash
+./deploy.sh --lcd-test
+```
+
+It finds the backpack's I2C address and shows test patterns and every status message on the LCD.
+
+### 6. The Windows GUI
 
 `LidarPC` builds on Linux (`dotnet build` checks it compiles) but its window only opens on
 Windows. For the demo and the final, run it on a Windows PC (`dotnet run --project LidarPC`,
