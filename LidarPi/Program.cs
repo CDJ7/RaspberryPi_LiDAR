@@ -21,24 +21,29 @@ namespace LidarPi;
 /// Use it to run the whole system on the Windows PC.</item>
 /// <item><c>--check [--scans N]</c>: LiDAR smoke test (info, health, scan rate,
 /// front/left/back/right distances), then exit. Can be combined with <c>--simulate</c>.</item>
+/// <item><c>--gpio-test [--seconds N]</c>: wiring check - each LED, the motion-enable pin,
+/// then N seconds (default 20) of live E-stop readings, then exit.</item>
 /// </list>
 /// </remarks>
 public static class Program
 {
-    /// <summary>Parses our flags, then runs either the service or the <c>--check</c> tool.</summary>
+    /// <summary>Parses our flags, then runs either the service or one of the test tools.</summary>
     /// <returns>Process exit code (0 = OK).</returns>
     public static int Main(string[] args)
     {
         bool simulate = HasFlag(args, "--simulate");
         bool check = HasFlag(args, "--check");
-        int scans = 20;
-        int scansIndex = Array.FindIndex(args, a => a.Equals("--scans", StringComparison.OrdinalIgnoreCase));
-        if (scansIndex >= 0 && scansIndex + 1 < args.Length && int.TryParse(args[scansIndex + 1], out int n)) scans = Math.Clamp(n, 1, 1000);
+        bool gpioTest = HasFlag(args, "--gpio-test");
+        int scansIndex = IndexOfFlag(args, "--scans");
+        int secondsIndex = IndexOfFlag(args, "--seconds");
+        int scans = IntAfter(args, scansIndex, 20, 1, 1000);
+        int seconds = IntAfter(args, secondsIndex, 20, 1, 600);
 
         // The generic host's command-line parser expects "--key value" pairs and would choke on
-        // our bare switches, so strip them before handing the rest (e.g. --urls) to the host.
+        // our bare switches, so strip them (and the numbers after --scans/--seconds) before
+        // handing the rest (e.g. --urls) to the host.
         string[] hostArgs = args
-            .Where((a, i) => !IsOurFlag(a) && !(scansIndex >= 0 && i == scansIndex + 1))
+            .Where((a, i) => !IsOurFlag(a) && i != scansIndex + 1 && i != secondsIndex + 1)
             .ToArray();
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -49,14 +54,12 @@ public static class Program
             ContentRootPath = AppContext.BaseDirectory,
         });
 
-        ConfigureServices(builder, simulate, check);
+        ConfigureServices(builder, simulate, toolMode: check || gpioTest);
         WebApplication app = builder.Build();
 
-        if (check)
-        {
-            // --check: no web server, no GPIO, no LCD - only the LiDAR, then exit.
-            return app.Services.GetRequiredService<LidarCheck>().Run(scans);
-        }
+        // Tool modes: no web server and no background services; run the test, then exit.
+        if (check) return app.Services.GetRequiredService<LidarCheck>().Run(scans);
+        if (gpioTest) return app.Services.GetRequiredService<GpioCheck>().Run(seconds);
 
         AppOptions options = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppOptions>>().Value;
         app.Logger.LogInformation("LidarAgv starting ({Mode}), REST API on http://{Addr}:{Port}",
@@ -72,14 +75,29 @@ public static class Program
     /// <summary>True if the command line contains <paramref name="flag"/> (case-insensitive).</summary>
     private static bool HasFlag(string[] args, string flag) => args.Contains(flag, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Position of <paramref name="flag"/> in the arguments, or -2 if absent (so "index + 1" never matches a real argument).</summary>
+    private static int IndexOfFlag(string[] args, string flag)
+    {
+        int i = Array.FindIndex(args, a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
+        return i < 0 ? -2 : i;
+    }
+
+    /// <summary>The integer after a flag such as <c>--scans 20</c>, clamped to a sane range, or the default.</summary>
+    private static int IntAfter(string[] args, int flagIndex, int fallback, int min, int max) =>
+        flagIndex >= 0 && flagIndex + 1 < args.Length && int.TryParse(args[flagIndex + 1], out int n)
+            ? Math.Clamp(n, min, max)
+            : fallback;
+
     /// <summary>Our own switches, which are removed before the host parses the command line.</summary>
     private static bool IsOurFlag(string arg) =>
         arg.Equals("--simulate", StringComparison.OrdinalIgnoreCase)
         || arg.Equals("--check", StringComparison.OrdinalIgnoreCase)
-        || arg.Equals("--scans", StringComparison.OrdinalIgnoreCase);
+        || arg.Equals("--gpio-test", StringComparison.OrdinalIgnoreCase)
+        || arg.Equals("--scans", StringComparison.OrdinalIgnoreCase)
+        || arg.Equals("--seconds", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Registers options, hardware wrappers, background services and the API.</summary>
-    private static void ConfigureServices(WebApplicationBuilder builder, bool simulate, bool check)
+    private static void ConfigureServices(WebApplicationBuilder builder, bool simulate, bool toolMode)
     {
         // Integrates with systemd: "Type=notify" readiness, journal log format, SIGTERM -> clean stop.
         // It is a no-op when not started by systemd (e.g. F5 in Visual Studio).
@@ -111,11 +129,17 @@ public static class Program
         if (simulate) builder.Services.AddSingleton<LidarDevice, SimulatedLidar>();
         else builder.Services.AddSingleton<LidarDevice, RpLidarA1>();
 
-        if (check)
+        if (toolMode)
         {
-            // --check prints its own results; keep the log to warnings so the table stays readable.
-            builder.Logging.SetMinimumLevel(LogLevel.Warning);
+            // The test tools print their own results; keep the log to warnings so the output stays readable.
+            // (Set through configuration because appsettings.json's "Information" would otherwise win.)
+            builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Logging:LogLevel:Default"] = "Warning",
+                ["Logging:LogLevel:Microsoft.Hosting.Lifetime"] = "Warning",
+            });
             builder.Services.AddSingleton<LidarCheck>();
+            builder.Services.AddSingleton<GpioCheck>();
             return;
         }
 

@@ -4,6 +4,7 @@
 #   ./deploy.sh            publish + copy only
 #   ./deploy.sh --check    ... then run the LiDAR check on the Pi
 #   ./deploy.sh --run      ... then run the program in the foreground (Ctrl+C to stop)
+#   ./deploy.sh --gpio-test ... then run the LED / motion-enable / E-stop wiring test
 #   ./deploy.sh --restart  ... then restart the systemd service (after stage 6 is installed)
 #
 # Settings (override on the command line, e.g.  PI=cdj5x@tikka.local ./deploy.sh):
@@ -35,7 +36,8 @@ echo "==> Deployed. Version on the Pi: $(ssh "$PI" "stat -c '%y' '$DEST/LidarPi.
 case "${1:-}" in
   --check)   ssh -t "$PI" "cd '$DEST' && ./LidarPi --check --scans 20" ;;
   --run)     ssh -t "$PI" "cd '$DEST' && ./LidarPi" ;;
+  --gpio-test) ssh -t "$PI" "cd '$DEST' && ./LidarPi --gpio-test --seconds 20" ;;
   --restart) ssh -t "$PI" "sudo systemctl restart lidar-agv && systemctl --no-pager status lidar-agv | head -15" ;;
   "")        ;;
-  *)         echo "Unknown option $1 (use --check, --run or --restart)"; exit 1 ;;
+  *)         echo "Unknown option $1 (use --check, --run, --gpio-test or --restart)"; exit 1 ;;
 esac
