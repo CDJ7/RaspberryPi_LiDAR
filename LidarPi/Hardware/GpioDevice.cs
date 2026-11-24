@@ -1,3 +1,4 @@
+// System.Device.Gpio (NuGet "System.Device.Gpio"): PinMode/PinValue and the GpioController that switch the pins.
 using System.Device.Gpio;
 
 namespace LidarPi.Hardware;
