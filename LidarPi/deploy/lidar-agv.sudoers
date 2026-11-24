@@ -1,0 +1,8 @@
+# Lets the LiDAR AGV service user run EXACTLY "/sbin/shutdown -h now" as root without a password,
+# for the REST command POST /api/shutdown. No other command and no other arguments are allowed.
+#
+# Install (validated first, so a typo can never lock you out of sudo):
+#   sudo visudo -cf ~/lidar-agv/deploy/lidar-agv.sudoers
+#   sudo install -m 0440 -o root -g root ~/lidar-agv/deploy/lidar-agv.sudoers /etc/sudoers.d/lidar-agv
+# (install-service.sh does both and replaces cdj5x with your user name.)
+cdj5x ALL=(root) NOPASSWD: /sbin/shutdown -h now

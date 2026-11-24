@@ -118,14 +118,21 @@ public static class Program
     /// <summary>Registers options, hardware wrappers, background services and the API.</summary>
     private static void ConfigureServices(WebApplicationBuilder builder, bool simulate, bool toolMode)
     {
-        // Integrates with systemd: "Type=notify" readiness, journal log format, SIGTERM -> clean stop.
+        // UseSystemd() comes from NuGet "Microsoft.Extensions.Hosting.Systemd": integrates with systemd
+        // ("Type=notify" readiness, journal log format, SIGTERM -> clean stop).
         // It is a no-op when not started by systemd (e.g. F5 in Visual Studio).
         builder.Host.UseSystemd();
-        builder.Logging.AddSimpleConsole(o =>
+        // Under systemd the "systemd" console format from UseSystemd() is kept: it marks every line
+        // with a syslog priority (so "journalctl -u lidar-agv -p warning" works) and lets the journal
+        // add the timestamps. Run by hand, use compact single lines with our own timestamps.
+        if (!Microsoft.Extensions.Hosting.Systemd.SystemdHelpers.IsSystemdService())
         {
-            o.SingleLine = true;
-            o.TimestampFormat = "HH:mm:ss.fff ";
-        });
+            builder.Logging.AddSimpleConsole(o =>
+            {
+                o.SingleLine = true;
+                o.TimestampFormat = "HH:mm:ss.fff ";
+            });
+        }
 
         builder.Services.Configure<AppOptions>(builder.Configuration.GetSection(AppOptions.SectionName));
         builder.Services.PostConfigure<AppOptions>(o => o.Simulate = simulate);

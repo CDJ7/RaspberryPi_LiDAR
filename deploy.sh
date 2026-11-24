@@ -6,7 +6,9 @@
 #   ./deploy.sh --run      ... then run the program in the foreground (Ctrl+C to stop)
 #   ./deploy.sh --gpio-test ... then run the LED / motion-enable / E-stop wiring test
 #   ./deploy.sh --lcd-test  ... then scan I2C for the LCD backpack and show test patterns
-#   ./deploy.sh --restart  ... then restart the systemd service (after stage 6 is installed)
+#   ./deploy.sh --install  ... then run the one-time Pi setup (packages, I2C, groups, udev,
+#                              sudoers, systemd service; asks for the Pi password for sudo)
+#   ./deploy.sh --restart  ... then restart the systemd service so it runs the new version
 #
 # Settings (override on the command line, e.g.  PI=cdj5x@tikka.local ./deploy.sh):
 #   PI    ssh login of the Pi            (default cdj5x@192.168.1.100)
@@ -39,7 +41,8 @@ case "${1:-}" in
   --run)     ssh -t "$PI" "cd '$DEST' && ./LidarPi" ;;
   --gpio-test) ssh -t "$PI" "cd '$DEST' && ./LidarPi --gpio-test --seconds 20" ;;
   --lcd-test)  ssh -t "$PI" "cd '$DEST' && ./LidarPi --lcd-test" ;;
+  --install) ssh -t "$PI" "cd '$DEST' && sudo bash deploy/install-service.sh" ;;
   --restart) ssh -t "$PI" "sudo systemctl restart lidar-agv && systemctl --no-pager status lidar-agv | head -15" ;;
   "")        ;;
-  *)         echo "Unknown option $1 (use --check, --run, --gpio-test, --lcd-test or --restart)"; exit 1 ;;
+  *)         echo "Unknown option $1 (use --check, --run, --gpio-test, --lcd-test, --install or --restart)"; exit 1 ;;
 esac

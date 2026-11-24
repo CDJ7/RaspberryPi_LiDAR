@@ -1,0 +1,43 @@
+# systemd unit for the LiDAR AGV safety monitor (course requirement: starts at boot with no
+# keyboard, login or manual command).
+#
+# Install (or just run deploy/install-service.sh, which does all of this):
+#   sudo cp ~/lidar-agv/deploy/lidar-agv.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now lidar-agv
+# Watch it:   systemctl status lidar-agv      journalctl -u lidar-agv -f
+#
+# Paths and user assume the Pi user "cdj5x" and the program in /home/cdj5x/lidar-agv.
+# install-service.sh rewrites them if your user or folder differs.
+
+[Unit]
+Description=LiDAR AGV safety monitor (RPLIDAR A1M8, LEDs, E-stop, LCD, REST API)
+# Start after the network is really up, so Kestrel can bind and the GUI can connect.
+Wants=network-online.target
+After=network-online.target
+# Keep retrying forever instead of giving up after 5 quick failures (e.g. LiDAR unplugged at boot).
+StartLimitIntervalSec=0
+
+[Service]
+# Type=notify: the program tells systemd "ready" (Microsoft.Extensions.Hosting.Systemd) once Kestrel listens.
+Type=notify
+User=cdj5x
+Group=cdj5x
+# Hardware access: GPIO (LEDs, E-stop, motion enable), I2C (LCD), dialout (/dev/rplidar).
+SupplementaryGroups=gpio i2c dialout
+WorkingDirectory=/home/cdj5x/lidar-agv
+ExecStart=/home/cdj5x/lidar-agv/LidarPi
+# Creates /var/lib/lidar-agv owned by the service user: the nonvolatile config.json lives there.
+StateDirectory=lidar-agv
+Environment=DOTNET_ENVIRONMENT=Production
+# Safety-critical process: restart it whenever it stops, for any reason, after 2 s.
+Restart=always
+RestartSec=2
+# Clean stop: SIGTERM -> motion enable LOW, LEDs off, LiDAR motor off, LCD cleared.
+KillSignal=SIGTERM
+TimeoutStopSec=15
+# NOTE: NoNewPrivileges is deliberately NOT set: POST /api/shutdown runs "sudo -n /sbin/shutdown -h now",
+# which the narrow rule in deploy/lidar-agv.sudoers allows and nothing else.
+
+[Install]
+WantedBy=multi-user.target

@@ -31,6 +31,24 @@
       "program": "${workspaceFolder}/LidarPC/bin/Debug/net8.0-windows/LidarPC.dll",
       "cwd": "${workspaceFolder}/LidarPC",
       "console": "internalConsole"
+    },
+    {
+      // Debug the program RUNNING ON THE PI over ssh (README "Remote debugging").
+      // Needs: ssh-copy-id done, vsdbg installed on the Pi in ~/vsdbg, and the program deployed
+      // from THIS laptop with ./deploy.sh (so the .pdb matches these sources). Pick "LidarPi" in the list.
+      "name": "Attach to LidarPi on the Pi (ssh)",
+      "type": "coreclr",
+      "request": "attach",
+      "processId": "${command:pickRemoteProcess}",
+      "pipeTransport": {
+        "pipeCwd": "${workspaceFolder}",
+        "pipeProgram": "ssh",
+        "pipeArgs": ["-T", "cdj5x@192.168.1.100"],
+        "debuggerPath": "~/vsdbg/vsdbg"
+      },
+      // The publish build is Release (optimised): some locals show as "optimized away"; breakpoints work.
+      "justMyCode": false,
+      "requireExactSource": false
     }
   ],
   "compounds": [
