@@ -38,8 +38,22 @@ public sealed record LcdState(string Line1, string Line2, bool Connected, string
 /// </remarks>
 public sealed class LcdDisplayManager : BackgroundService
 {
-    private const int Columns = 16;
-    private const char DegreeGlyph = (char)0xDF;   // the HD44780 A00 character ROM has a degree-like sign at 0xDF
+    /// <summary>Characters per line of the 16x2 display.</summary>
+    internal const int Columns = 16;
+
+    /// <summary>The HD44780 A00 character ROM has a degree-like sign at 0xDF (the LCD cannot show Unicode '°').</summary>
+    internal const char DegreeGlyph = (char)0xDF;
+
+    // Line-2 state texts (also shown by the --lcd-test tool, so they are defined once).
+    internal const string TextClear = "CLEAR";
+    internal const string TextCaution = "CAUTION - CLOSE";
+    internal const string TextStop = "STOP-TOO CLOSE";
+    internal const string TextEStop = "!! E-STOP !!";
+    internal const string TextLidarFault = "LIDAR FAULT";
+
+    // Both lines are rewritten this often even if unchanged: repairs a display garbled by
+    // electrical noise and notices an unplugged LCD while the text stays the same.
+    private static readonly TimeSpan FullRefreshInterval = TimeSpan.FromSeconds(30);
 
     private readonly SafetyMonitor _safety;
     private readonly ConfigStore _config;
@@ -54,6 +68,7 @@ public sealed class LcdDisplayManager : BackgroundService
     private DateTime _nextInitAttemptUtc = DateTime.MinValue;
     private string? _fault;
     private string?[] _shown = new string?[2];   // what is on the glass now (null = unknown, forces a write)
+    private DateTime _nextFullRefreshUtc = DateTime.MinValue;
     private string _customLine1 = "", _customLine2 = "";
     private DateTime _customUntilUtc = DateTime.MinValue;
     private volatile bool _showShutdown;
@@ -76,8 +91,8 @@ public sealed class LcdDisplayManager : BackgroundService
     {
         lock (_lock)
         {
-            _customLine1 = Fit(line1);
-            _customLine2 = Fit(line2);
+            _customLine1 = FitLine(line1);
+            _customLine2 = FitLine(line2);
             _customUntilUtc = DateTime.UtcNow.AddSeconds(Math.Clamp(seconds, 1, 3600));
         }
         _logger.LogInformation("LCD custom message for {Seconds} s: '{L1}' / '{L2}'", seconds, line1, line2);
@@ -96,10 +111,14 @@ public sealed class LcdDisplayManager : BackgroundService
         lock (_lock)
         {
             int left = (int)Math.Ceiling(Math.Max(0, (_customUntilUtc - DateTime.UtcNow).TotalSeconds));
-            return new LcdState(_shown[0] ?? "", _shown[1] ?? "", _simulate || _lcd is not null, _fault,
+            // The API reports readable text: the LCD's internal degree code 0xDF becomes a real '°'.
+            return new LcdState(Readable(_shown[0]), Readable(_shown[1]), _simulate || _lcd is not null, _fault,
                 $"0x{_config.Current.LcdI2cAddress:X2}", left);
         }
     }
+
+    /// <summary>Text as a person would read it on the glass (glyph 0xDF shown as '°').</summary>
+    private static string Readable(string? line) => (line ?? "").Replace(DegreeGlyph, '°');
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -127,12 +146,17 @@ public sealed class LcdDisplayManager : BackgroundService
                 // line 1 changes 5x per second and would flood the journal.
                 if (l1 != _shown[0] || l2 != _shown[1])
                     _logger.Log(l2 != _shown[1] ? LogLevel.Information : LogLevel.Debug,
-                        "[SIM] LCD |{L1}| |{L2}|", l1.Replace(DegreeGlyph, '°'), l2);
+                        "[SIM] LCD |{L1}| |{L2}|", Readable(l1), l2);
                 _shown[0] = l1;
                 _shown[1] = l2;
                 return;
             }
             if (!EnsureLcd()) return;
+            if (DateTime.UtcNow >= _nextFullRefreshUtc)
+            {
+                _shown = new string?[2];   // forget what is displayed -> both lines are rewritten below
+                _nextFullRefreshUtc = DateTime.UtcNow + FullRefreshInterval;
+            }
             try
             {
                 WriteLineIfChanged(0, l1);
@@ -149,20 +173,20 @@ public sealed class LcdDisplayManager : BackgroundService
     /// <summary>Applies the priority rules from the class remarks.</summary>
     private (string, string) ComposeLines()
     {
-        if (_showShutdown) return (Fit("Shutting down..."), Fit(""));
+        if (_showShutdown) return (FitLine("Shutting down..."), FitLine(""));
 
         SafetyStatus? s = _safety.Status.Get();
-        if (s is null) return (Fit("LiDAR AGV"), Fit("Starting..."));
+        if (s is null) return (FitLine("LiDAR AGV"), FitLine("Starting..."));
 
         string live = s.ClosestM is double d && s.BearingDeg is double b
             ? string.Create(CultureInfo.InvariantCulture, $"Near: {d:0.00}m {Math.Round(b) % 360:000}{DegreeGlyph}")
             : s.LidarFault ? "Near: --.--m" : "Near: none";
 
-        if (s.EStopLatched) return (Fit(live), Fit("!! E-STOP !!"));
-        if (s.LidarFault) return (Fit(live), Fit("LIDAR FAULT"));
-        if (s.Zone == SafetyZone.Stop) return (Fit(live), Fit("STOP-TOO CLOSE"));
+        if (s.EStopLatched) return (FitLine(live), FitLine(TextEStop));
+        if (s.LidarFault) return (FitLine(live), FitLine(TextLidarFault));
+        if (s.Zone == SafetyZone.Stop) return (FitLine(live), FitLine(TextStop));
         if (DateTime.UtcNow < _customUntilUtc) return (_customLine1, _customLine2);
-        return (Fit(live), Fit(s.Zone == SafetyZone.Caution ? "CAUTION - CLOSE" : "CLEAR"));
+        return (FitLine(live), FitLine(s.Zone == SafetyZone.Caution ? TextCaution : TextClear));
     }
 
     /// <summary>Opens the LCD if needed; re-opens it when the configured address changed.</summary>
@@ -203,8 +227,11 @@ public sealed class LcdDisplayManager : BackgroundService
         _shown[row] = text;
     }
 
-    /// <summary>Pads/cuts text to exactly 16 characters and replaces anything the LCD ROM cannot show.</summary>
-    private static string Fit(string text)
+    /// <summary>
+    /// Pads/cuts text to exactly 16 characters and replaces anything the LCD ROM cannot show.
+    /// Always writing 16 characters overwrites old text without a flickering Clear().
+    /// </summary>
+    internal static string FitLine(string text)
     {
         var sb = new StringBuilder(Columns);
         foreach (char ch in text)

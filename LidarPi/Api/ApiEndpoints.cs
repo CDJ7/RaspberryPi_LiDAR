@@ -132,7 +132,7 @@ public static class ApiEndpoints
             s?.FaultMessage ?? (s is null ? "Safety loop not running yet" : null),
             faults,
             BuildLeds(d),
-            lcd.Line1.Replace((char)0xDF, '°'),
+            lcd.Line1,
             lcd.Line2,
             d.Shutdown.InProgress,
             d.Shutdown.Error,
@@ -220,7 +220,7 @@ public static class ApiEndpoints
         LidarStatus l = d.Lidar.Status;
         var lidar = new LidarSystemInfo(l.Device, l.Connected, l.Info?.ModelName, l.Info?.Firmware, l.Info?.Hardware,
             l.Info?.SerialNumber, l.Health?.Status, l.Health?.ErrorCode, l.ScanRateHz, l.ErrorCount, l.LastError);
-        return Results.Ok(new SystemResponse(info.Read(), lidar, d.Lcd.GetState() with { Line1 = d.Lcd.GetState().Line1.Replace((char)0xDF, '°') },
+        return Results.Ok(new SystemResponse(info.Read(), lidar, d.Lcd.GetState(),
             d.Simulate ? "simulated (no GPIO access)" : gpio.Description, d.Config.FilePath, d.Simulate));
     }
 

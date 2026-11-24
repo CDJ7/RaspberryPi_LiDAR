@@ -155,4 +155,14 @@ sudo systemctl stop lidar-agv 2>/dev/null; cd ~/lidar-agv && ./LidarPi --gpio-te
 3. For 20 s every change of the E-stop input is printed: **released = LOW, pressed = HIGH**.
    If it reads HIGH while released, you are on the NO contact or a wire is loose.
 
-For the LCD (stage 5): `i2cdetect -y 1` must show the backpack address.
+For the LCD:
+
+```bash
+sudo systemctl stop lidar-agv 2>/dev/null; cd ~/lidar-agv && ./LidarPi --lcd-test
+```
+
+1. **Bus scan** lists every backpack address that answers (0x20-0x27, 0x38-0x3F). Nothing found = wiring,
+   level shifter (HV/LV swapped, no 5 V) or I2C not enabled. Found at another address = run again with
+   `--address 0x3F` (for example) and set that address in the GUI.
+2. **Display test**: `LCD test 16x2 OK` / `0123456789ABCDEF`, a backlight blink, then every status message
+   the service uses. Backlight on but no readable text = turn the contrast potentiometer.
