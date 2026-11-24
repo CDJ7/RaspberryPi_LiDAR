@@ -26,6 +26,8 @@ Original requirements: `docs/Claude_Code_Prompt_RPLIDAR_Lab5.md` and the course 
 - Development machine: **Linux laptop**, no Visual Studio. Use the `dotnet` CLI (.NET 8 SDK).
 - Target: Raspberry Pi 5 **`tikka`**, user **`cdj5x`**, IP **192.168.1.100**, Raspberry Pi OS 64-bit (Debian).
   Claude cannot reach the Pi: give the user exact commands to run and wait for the output.
+- Wiring and pin map: `WIRING.md` (LEDs GPIO5/6/13, E-stop GPIO26 NC-to-GND with pull-up, motion enable GPIO21,
+  LCD on I2C GPIO2/3 through a level shifter). GPIO needs `libgpiod2` (or `libgpiod3`) on the Pi.
 - LiDAR: RPLIDAR A1M8 (model byte 0x18, firmware 1.29) on its CP2102 USB adapter → `/dev/rplidar`
   (udev rule `LidarPi/deploy/99-rplidar.rules`). Needs a micro-USB **data** cable.
 
@@ -36,7 +38,8 @@ dotnet build LidarAgv.sln                                  # must finish with 0 
 dotnet run --project LidarPi -- --simulate                 # full Pi app on this laptop, fake LiDAR, API on :5000
 dotnet run --project LidarPi -- --check --simulate         # LiDAR self-test against the simulator
 python3 tools/linux-viewer/lidar_viewer.py --host localhost # watch the simulator (password: changeme)
-./deploy.sh [--check|--run|--restart]                      # publish linux-arm64 and rsync to the Pi
+./deploy.sh [--check|--run|--gpio-test|--restart]          # publish linux-arm64 and rsync to the Pi
+dotnet run --project LidarPi -- --gpio-test --simulate     # LED / motion-enable / E-stop wiring test (simulated)
 curl -u admin:changeme http://localhost:5000/api/status    # quick API check
 ```
 
@@ -66,7 +69,7 @@ Default API login: `admin` / `changeme` (stored as a PBKDF2 hash in `data/config
 1. ✅ Pi app in `--simulate` mode with the REST API
 2. ✅ PC GUI (WinForms) against the simulator
 3. ✅ Real RPLIDAR driver + `--check` (verified on the Pi: info/health OK; scan start-up fix pending user test)
-4. ⏳ GPIO LEDs, E-stop, motion enable + `WIRING.md`
+4. 🔧 GPIO LEDs, E-stop, motion enable + `WIRING.md` + `--gpio-test` (code done; wiring test on the Pi pending)
 5. ⏳ LCD on real hardware
 6. ⏳ systemd service, sudoers, `deploy.ps1`, `make-zip.ps1` (+ Linux equivalent), README bring-up guide,
    `REQUIREMENTS_MAP.md`, proposal "Description" text

@@ -13,6 +13,7 @@ E-stop, LCD, REST API) and a C# WinForms GUI on a Windows PC.
 | `LidarPi/` | The Pi program (C#, ASP.NET Core). Also runs on Linux/Windows with `--simulate`. |
 | `LidarPC/` | The PC GUI (C#, WinForms; runs on Windows). |
 | `tools/linux-viewer/` | Python viewer for the Linux laptop (dev tool, not part of the submission). |
+| `WIRING.md` | Pin map and wiring for the LEDs, E-stop, motion enable, LCD and LiDAR. |
 | `CLAUDE.md` | Instructions for Claude Code. |
 
 ## Working from a Linux laptop
@@ -83,7 +84,19 @@ LiDAR check. Use `--run` to start the program in the foreground instead, then wa
 python3 tools/linux-viewer/lidar_viewer.py
 ```
 
-### 4. The Windows GUI
+### 4. Wire and test the LEDs and E-stop
+
+Wire everything as in [`WIRING.md`](WIRING.md) (Pi powered off), make sure the GPIO library is
+installed on the Pi (`sudo apt install -y libgpiod2`), then from the laptop:
+
+```bash
+./deploy.sh --gpio-test
+```
+
+Each LED lights in turn, the motion-enable pin goes HIGH then LOW, and every press/release of the
+E-stop button is printed.
+
+### 5. The Windows GUI
 
 `LidarPC` builds on Linux (`dotnet build` checks it compiles) but its window only opens on
 Windows. For the demo and the final, run it on a Windows PC (`dotnet run --project LidarPC`,
